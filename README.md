@@ -60,6 +60,8 @@ While the IDF alerts are translated into French, English, Russian, and Arabic, o
 
 ## Parsing: Emergency Event Codes/Classification
 
+![alt text](screenshots/5.png)
+
 The following table shows the three distinct alert statuses found in the JSON data, with their Hebrew titles, corresponding categories, and English translations:
 
 | Hebrew Title | Category | Common Name | English Translation |
