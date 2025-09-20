@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Israeli Home Front Command Red Alert Monitor
-Monitors the active alerts feed for Jerusalem Center and publishes MQTT events.
+Monitors the active alerts feed and publishes MQTT events.
 """
 
 import json
@@ -35,10 +35,10 @@ class AlertConfig:
     request_timeout: int = 10  # seconds
     
     # Location Configuration
-    target_area: str = "ירושלים - מרכז"  # Jerusalem - Center
+    target_area: str = "רחובות"  # Example default
     
     # MQTT Configuration
-    mqtt_broker: str = "localhost"
+    mqtt_broker: str = "192.168.0.44"
     mqtt_port: int = 1883
     mqtt_username: Optional[str] = None
     mqtt_password: Optional[str] = None
@@ -101,7 +101,12 @@ class RedAlertMonitor:
     def setup_mqtt(self) -> bool:
         """Initialize MQTT client connection"""
         try:
-            self.mqtt_client = mqtt.Client(client_id=self.config.mqtt_client_id)
+            # Remove deprecated callback_api_version to avoid warning
+            self.mqtt_client = mqtt.Client(
+                client_id=self.config.mqtt_client_id,
+                protocol=mqtt.MQTTv311,
+                transport="tcp"
+            )
             
             if self.config.mqtt_username and self.config.mqtt_password:
                 self.mqtt_client.username_pw_set(
@@ -122,14 +127,14 @@ class RedAlertMonitor:
             logger.error(f"Failed to setup MQTT connection: {e}")
             return False
     
-    def _on_mqtt_connect(self, client, userdata, flags, rc):
+    def _on_mqtt_connect(self, client, userdata, flags, rc, properties=None):
         """MQTT connection callback"""
         if rc == 0:
             logger.info("Successfully connected to MQTT broker")
         else:
             logger.error(f"Failed to connect to MQTT broker with code {rc}")
     
-    def _on_mqtt_disconnect(self, client, userdata, rc):
+    def _on_mqtt_disconnect(self, client, userdata, rc, properties=None):
         """MQTT disconnection callback"""
         logger.warning(f"Disconnected from MQTT broker with code {rc}")
     
@@ -164,12 +169,14 @@ class RedAlertMonitor:
             )
             response.raise_for_status()
             
-            # Handle empty response (no active alerts)
-            if not response.text.strip():
+            # Decode using 'utf-8-sig' to remove BOM if present
+            text = response.content.decode('utf-8-sig').strip()
+            
+            if not text:
                 logger.debug("No active alerts (empty response)")
                 return []
             
-            alerts = response.json()
+            alerts = json.loads(text)
             logger.debug(f"Received {len(alerts)} alerts")
             return alerts
             
@@ -186,35 +193,39 @@ class RedAlertMonitor:
             # No active alerts - check if we need to send all clear
             if self.state.current_state in ['prewarning', 'active']:
                 self.handle_all_clear()
+            else:
+                logger.info("There are no alerts in the target area, everything is good.")
             return
         
-        jerusalem_alerts = [
+        target_area_alerts = [
             alert for alert in alerts 
             if alert.get('data') == self.config.target_area
         ]
         
-        if not jerusalem_alerts:
+        if not target_area_alerts:
             # No alerts for our target area
             if self.state.current_state in ['prewarning', 'active']:
                 self.handle_all_clear()
+            else:
+                logger.info("There are no alerts in the target area, everything is good.")
             return
         
-        # Process alerts for Jerusalem Center
-        for alert in jerusalem_alerts:
+        # Process alerts for the target area
+        for alert in target_area_alerts:
             self.process_single_alert(alert)
     
     def process_single_alert(self, alert: Dict) -> None:
-        """Process a single alert for Jerusalem Center"""
+        """Process a single alert for the target area"""
         try:
             category = alert.get('category')
             title = alert.get('title', '')
             alert_date = alert.get('alertDate', '')
             data = alert.get('data', '')
             
-            # Parse alert timestamp
+            # Parse alert timestamp safely
             try:
                 alert_time = datetime.strptime(alert_date, '%Y-%m-%d %H:%M:%S')
-            except ValueError:
+            except (ValueError, TypeError):
                 alert_time = datetime.now()
             
             logger.info(f"Processing alert: Category {category}, Title: {title}, Area: {data}")
@@ -240,7 +251,7 @@ class RedAlertMonitor:
                 'area': self.config.target_area,
                 'alert_type': 'prewarning',
                 'title': alert.get('title', ''),
-                'message': 'Pre-warning alert for Jerusalem Center - Take shelter immediately'
+                'message': 'Pre-warning alert - Take shelter immediately'
             }
             self.publish_mqtt_event(self.config.topic_prewarning, payload)
     
@@ -252,7 +263,7 @@ class RedAlertMonitor:
                 'area': self.config.target_area,
                 'alert_type': 'active',
                 'title': alert.get('title', ''),
-                'message': 'ACTIVE RED ALERT for Jerusalem Center - TAKE SHELTER NOW'
+                'message': 'ACTIVE RED ALERT - TAKE SHELTER NOW'
             }
             self.publish_mqtt_event(self.config.topic_active, payload)
     
@@ -264,7 +275,7 @@ class RedAlertMonitor:
                 'area': self.config.target_area,
                 'alert_type': 'allclear',
                 'title': alert.get('title', ''),
-                'message': 'All clear for Jerusalem Center - Threat has ended'
+                'message': 'All clear - Threat has ended'
             }
             self.publish_mqtt_event(self.config.topic_allclear, payload)
     
@@ -276,13 +287,13 @@ class RedAlertMonitor:
                 'area': self.config.target_area,
                 'alert_type': 'allclear',
                 'title': 'No active alerts',
-                'message': 'All clear for Jerusalem Center - No active threats'
+                'message': 'All clear - No active threats'
             }
             self.publish_mqtt_event(self.config.topic_allclear, payload)
     
     def run(self) -> None:
         """Main monitoring loop"""
-        logger.info("Starting Red Alert Monitor for Jerusalem Center")
+        logger.info("Starting Red Alert Monitor")
         logger.info(f"Target area: {self.config.target_area}")
         logger.info(f"Poll interval: {self.config.poll_interval} seconds")
         
