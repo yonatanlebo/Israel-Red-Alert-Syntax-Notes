@@ -47,7 +47,8 @@ class AlertConfig:
     # MQTT Topics
     topic_prewarning: str = "redalert/prewarning"
     topic_active: str = "redalert/active"
-    topic_allclear: str = "redalert/allclear"
+    topic_allclear: str = "redalert/alerts"
+    topic_alerts: str = "redalert/alerts"
     
     @classmethod
     def from_env(cls) -> 'AlertConfig':
@@ -253,7 +254,7 @@ class RedAlertMonitor:
                 'title': alert.get('title', ''),
                 'message': 'Pre-warning alert - Take shelter immediately'
             }
-            self.publish_mqtt_event(self.config.topic_prewarning, payload)
+            self.publish_mqtt_event(self.config.topic_alerts, payload)
     
     def handle_active_alert(self, alert: Dict, alert_time: datetime) -> None:
         """Handle active red alert"""
@@ -265,7 +266,7 @@ class RedAlertMonitor:
                 'title': alert.get('title', ''),
                 'message': 'ACTIVE RED ALERT - TAKE SHELTER NOW'
             }
-            self.publish_mqtt_event(self.config.topic_active, payload)
+            self.publish_mqtt_event(self.config.topic_alerts, payload)
     
     def handle_all_clear_alert(self, alert: Dict, alert_time: datetime) -> None:
         """Handle all clear alert from API"""
@@ -277,7 +278,7 @@ class RedAlertMonitor:
                 'title': alert.get('title', ''),
                 'message': 'All clear - Threat has ended'
             }
-            self.publish_mqtt_event(self.config.topic_allclear, payload)
+            self.publish_mqtt_event(self.config.topic_alerts, payload)
     
     def handle_all_clear(self) -> None:
         """Handle implicit all clear (no alerts in feed)"""
@@ -289,7 +290,7 @@ class RedAlertMonitor:
                 'title': 'No active alerts',
                 'message': 'All clear - No active threats'
             }
-            self.publish_mqtt_event(self.config.topic_allclear, payload)
+            self.publish_mqtt_event(self.config.topic_alerts, payload)
     
     def run(self) -> None:
         """Main monitoring loop"""
