@@ -62,11 +62,12 @@ While the IDF alerts are translated into French, English, Russian, and Arabic, o
 
 ![alt text](screenshots/5.png)
 
-The following table shows the three distinct alert statuses found in the JSON data, with their Hebrew titles, corresponding categories, and English translations:
+The following table shows the distinct alert statuses found in the JSON data, with their Hebrew titles, corresponding categories, and English translations:
 
 | Hebrew Title | Category | Common Name | English Translation |
 |--------------|----------|-------------|-------------------|
 | `ירי רקטות וטילים` | 1 | Active Red Alert | Rocket and missile fire |
+| `חדירת כלי טיס עוין` | 2 | Hostile UAV/Drone Alert | Hostile aircraft infiltration |
 | `ירי רקטות וטילים - האירוע הסתיים` | 13 | Event Ended / All Clear | Rocket and missile fire - the event has ended |
 | `בדקות הקרובות צפויות להתקבל התרעות באיזורים הבאים:` | 14 | Prewarning | In the coming minutes, alerts are expected to be received in the following areas: |
 
